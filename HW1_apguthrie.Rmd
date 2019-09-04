@@ -1,0 +1,117 @@
+---
+title: "Homework 1"
+author: "Adeline Guthrie"
+date: "September 4, 2019"
+header-includes:
+  - \usepackage{amsmath}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+Swirl tutorials completed.
+
+# Problem 2
+
+### Part A
+
+By the end of this class, I hope to be more organized and efficient in my research when using programming.  I hope produce more comprehendable code using structured formatting and clear comments.  Although I have a decent background in R, I would not consider myself an expert and I am looking forward to a more structured overview of some of the useful features of R.
+
+Three specific desired learning objectives I have for this course are:
+
+\begin{enumerate}
+\item to become proficient in Rmarkdown and reinforce my knowledge of R
+\item to effectively use version control to keep track of changes in code
+\item to be able to conduct proper reproducible research
+\end{enumerate}
+
+
+### Part B
+
+The following are three probability density functions (Appendix Cassella \& Berger):
+
+Exponential Distribution pdf:
+
+
+\begin{equation}
+ f(x|\beta) = \frac{1}{\beta} e^{\frac{-x}{\beta}}, \text{ } 0 \leq x < \infty, \text{ } \beta > 0 
+\end{equation}
+
+Gamma Distribution pdf:
+
+\begin{equation}
+   f(x|\alpha, \beta) = \frac{1}{\Gamma (\alpha)\beta^\alpha} x^{\alpha - 1}  e^{\frac{-x}{\beta}}, \text{ } 0 \leq x < \infty, \text{ } \alpha,\beta > 0  
+\end{equation}
+
+Uniform Distribution pdf:
+
+\begin{equation}
+    f(x|a,b) = \frac{1}{a-b}, \text{ } a \leq x \leq b
+\end{equation}
+
+
+# Problem 3
+\begin{enumerate}
+\item
+\textbf{Maintain an analysis workflow detailing each step performed and all factors that may effect the result of each step.}
+
+A challenge that may arise from this step is being careful to intentionally document each step as it is performed.  It may be easier and more productive to do many steps and document after results are collected but this allows more room for error and details may be forgotten.
+
+\item
+\textbf{When possible, avoid manipulating data manually.}
+
+It may be challenging to avoid manual data manipulation when it is habit to do simple steps manually (ie: move file, copy and paste, etc) and it may occur without any thought. 
+
+\item
+\textbf{Keep track of the names and exact versions of any programs used.}
+
+If many different programs are used, it may be difficult to keep track of all of them, especially if any programs are updated during the course of research.
+
+\item
+\textbf{Use a version control system to keep track of any edits made to your code.}
+
+Version control is a very useful tool however, it still requires one to keep track of which version produced which results, which may be challenging.
+
+\item
+\textbf{Keep track of all intermediate results in an organized and standardized fashion.}
+
+This step may add extra time to research that may feel tedious and uneccesary even though it is important for reproducing results. 
+
+\item
+\textbf{Note where randomness is used in the analysis and record the seed used.}
+
+The biggest challenge with this step may simply be remembering to use a seed and then keeping track of where and what seeds are used.
+
+\item
+\textbf{When a plot is generated, store the raw data behind it (and the code used if possible).}
+
+A challenge that may arise in this step is storing a data set that is very large or involves sensitive data.  It may not be possible to store it locally because of storage size or privacy risks.  It may also be a challenge to store the data in a format that could be universally used in the future to reproduce the results. 
+
+\item
+\textbf{Detailed underlying data from all main results should be inspected to verify results and then made available for future inspection.}
+
+This may result in similar challanges to those in step 7 involving the format, size, or sensitivity of the data.
+
+\item
+\textbf{Make direct connections between textual interpretations and specific underlying results along the way instead of at the end of research.}
+
+It may be challenging to make connections to results immediately as it may not be possible to make interpretations until more results are collected.
+
+\item
+\textbf{Make all data, source code, intermediate results, and any other important information on what you did to produce your results publically available along with the main results and analysis.}
+
+This step requires the researcher to maintain a record of this information in an organized and comprehendable format for it to be easily accessible, which may be challenging. Also, sensitive data may prevet it from being published.
+
+
+\end{enumerate}
+
+# Problem 4
+
+```{r faithful, echo = FALSE}
+plot(faithful, main = "Scatterplot of Old Faithful Geyser Eruptions", xlab = "Length of Eruption (Min)", ylab = "Waiting Time to Next Eruption (Min)")
+hist(faithful$eruptions, breaks = 24, main = "Histogram of Old Faithful Erruptions", xlim = range(0, 6), ylim = range(0, 50), xlab = "Length of Eruption (Min)", ylab = "Frequency")
+```
