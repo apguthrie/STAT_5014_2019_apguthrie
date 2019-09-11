@@ -1,0 +1,237 @@
+---
+title: "Homework 2"
+author: "Adeline Guthrie"
+date: "September 11, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ramify)
+library(swirl)
+```
+
+## Problem 3
+
+Version control is helpful in the classroom for collaborative coding projects, allowing students to edit code that belongs to a group, still preserving other versions of the code so changes may be checked by other members of the group before finalized.  It also allows the instructor to keep better track of who in each group has been working on the code, possibly to determine if each group member has done their share.
+
+
+## Problem 4
+### Part a
+```{r sensory}
+#Store URL
+url <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat"
+
+#Read in Data, skip first line with just "Operator", treat the second row as the header,
+#and fill empty spaces with "NA"
+sensory <-read.table(url, header = T, sep = " ", skip = 1, fill = T)
+
+#Shift data values to the right in the rows missing the item number and add the item number
+c <- 0
+for( i in 1:30){
+  if(i%%3 != 1){
+    sensory[i,2:6] <- sensory[i, 1:5]
+    sensory[i,1] <- c
+  }else{
+    c <- c + 1
+  }
+}
+
+#Give each observation its own row
+sensory <- gather(sensory, X1, response, -Item)
+
+#Name columns
+colnames(sensory) <- c("Item", "Operator", "Response")
+
+#Remove X's infront of operator numbers
+sensory$Operator <- parse_number(sensory$Operator)
+
+#Final Dataset:
+sensory
+
+#Summarize data
+sensory %>%
+  group_by(Operator) %>%
+  summarise(Mean = mean(Response), Std_dev = sd(Response), Min = min(Response), 
+            Median = median(Response), Max = max(Response))
+
+```
+
+
+### Part b
+```{r jumps}
+#Store URL
+url2 <- "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat"
+
+#Read in data, skip the first row since the labels are messy, fill empty spaces with "NA"
+jumps <- read.table(url2, header = F, sep = " ", skip = 1, fill = T)
+
+#Resize the original matrix to give each observation its own row
+jumps <- resize(jumps, nrow = 24, ncol =2, byrow = T)
+
+#Remove rows of "NA"
+jumps <-na.omit(jumps)
+
+#Name columns
+colnames (jumps) <- c("Year", "Long_Jump")
+
+#Convert to tbl_class to use dplyr functions
+jumps <- tbl_df(jumps)
+
+#Sort by Year 
+jumps <- arrange(jumps, Year)
+
+#Final Dataset:
+jumps
+
+#Summarize data
+summary(jumps$Long_Jump)
+
+```
+
+### Part c
+```{r weight}
+#Store URL
+url3 <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat"
+
+#Read in data, skip the first row since the labels are messy, fill empty spaces with "NA"
+weights <-read.table(url3, header = F, sep = " ", skip = 1, fill = T)
+
+#Resize the original matrix to give each observation its own row
+weights <- resize(weights, nrow = 63, ncol =2, byrow = T)
+
+#Name columns
+colnames(weights) <- c("Body_Wt", "Brain_Wt")
+
+#Final Dataset:
+weights
+
+#Summarize data
+summary(weights)
+
+```
+
+### Part d
+```{r tomatoes}
+#Store URL
+url4 <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat"
+
+#Read in data, skip first row and use the second row as header, remove the 
+#comment character = "#"
+tomatoes <- read.table(url4, header = T, sep = "", skip = 1, comment.char = "")
+
+#Split the data in each of the six cells by ","
+I_X10000 <- do.call("rbind", strsplit(toString(tomatoes[1,1]), ","))
+I_X20000 <- do.call("rbind", strsplit(toString(tomatoes[1,2]), ","))
+I_X30000 <- do.call("rbind", strsplit(toString(tomatoes[1,3]), ","))
+P_X10000 <- do.call("rbind", strsplit(toString(tomatoes[2,1]), ","))
+P_X20000 <- do.call("rbind", strsplit(toString(tomatoes[2,2]), ","))
+P_X30000 <- do.call("rbind", strsplit(toString(tomatoes[2,3]), ","))
+
+#Combine the vectors of split data
+I <- cbind(I_X10000, I_X20000, I_X30000)
+P <- cbind(P_X10000, P_X20000, P_X30000)
+
+tomatoes <- rbind(I,P)
+
+#Name columns
+colnames(tomatoes) <- c("10000_1", "10000_2", "10000_3","20000_1", "20000_2", 
+                        "20000_3", "30000_1", "30000_2", "30000_3")
+
+#Convert to tbl_class to use dplyr and tidyr functions
+tomatoes <- tbl_df(tomatoes)
+
+#Create column with variety names (I = Ife\#1, P = PusaEarlyDwarf)
+tomatoes <- mutate(tomatoes, "Variety" = c("I", "P")) 
+
+#Reorder columns
+tomatoes <- select(tomatoes, "Variety", "10000_1", "10000_2", "10000_3","20000_1",
+                   "20000_2", "20000_3", "30000_1", "30000_2", "30000_3" )
+
+#Give each observation its own row
+tomatoes <- gather(tomatoes, X1, Response, -Variety)
+
+#Fix density labels and remove unnecessary column
+tomatoes <- separate(tomatoes, X1, c("Density", "temp"))
+tomatoes <- select(tomatoes, Variety, Density, Response)
+
+#Sort by variety and then density
+tomatoes <- arrange(tomatoes, Variety, Density)
+
+#Convert Response type to Numeric
+tomatoes <- transform(tomatoes, Response = as.numeric(Response))
+
+#Final Dataset:
+tomatoes
+
+#Summarize data by variety
+tomatoes %>%
+  group_by(Variety) %>%
+  summarise(Mean = mean(Response), Std_dev = sd(Response), Min = min(Response), 
+            Median = median(Response), Max = max(Response))
+
+#Summarize data by density 
+tomatoes %>%
+  group_by(Density) %>%
+  summarise(Mean = mean(Response), Std_dev = sd(Response), Min = min(Response), 
+            Median = median(Response), Max = max(Response))
+
+
+```
+
+## Problem 5
+
+```{r plants}
+
+# Path to data
+.datapath <- file.path(path.package('swirl'), 'Courses',
+                      'R_Programming_E', 'Looking_at_Data',
+                      'plant-data.txt')
+# Read in data
+plants <- read.csv(.datapath, strip.white=TRUE, na.strings="")
+
+# Remove annoying columns
+.cols2rm <- c('Accepted.Symbol', 'Synonym.Symbol')
+plants <- plants[, !(names(plants) %in% .cols2rm)]
+
+# Make names pretty
+names(plants) <- c('Scientific_Name', 'Duration', 'Active_Growth_Period',
+                   'Foliage_Color', 'pH_Min', 'pH_Max',
+                   'Precip_Min', 'Precip_Max',
+                   'Shade_Tolerance', 'Temp_Min_F')
+
+#Convert to tbl_class to use dplyr functions
+plants <- tbl_df(plants)
+
+#Remove rows with NA values
+plants <- na.omit(plants)
+
+#Add column "pH_Mid" considering the midpoint of ph_Min and pH_Max
+plants <- mutate(plants, 'pH_Mid' = ((pH_Min + pH_Max) / 2))
+
+#Final dataset
+plants
+
+#Summarize data by foliage color
+plants %>%
+  group_by(Foliage_Color) %>%
+  summarise(Mean = mean(pH_Mid), Std_dev = sd(pH_Mid), Min = min(pH_Mid), 
+            Median = median(pH_Mid), Max = max(pH_Mid))
+
+#Fit linear model
+plants.lm <- lm(pH_Mid ~ Foliage_Color, plants)
+
+#Table of coefficients
+summary(plants.lm)
+
+#ANOVA results
+plants.anova <- aov(pH_Mid ~ Foliage_Color, plants)
+summary(plants.anova)
+
+#Boxplot
+plot(pH_Mid ~ Foliage_Color, plants)
+
+```
