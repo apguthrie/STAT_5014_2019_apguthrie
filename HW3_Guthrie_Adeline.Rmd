@@ -1,0 +1,173 @@
+---
+title: "Homework 3"
+author: "Adeline Guthrie"
+date: "September 18, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ramify)
+library(knitr)
+```
+
+## Problem 3
+### Part a
+```{r sensory}
+#Store URL
+url <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat"
+
+#Read in Data, skip first line with just "Operator", treat the second row as the header,
+#and fill empty spaces with "NA"
+sensory <-read.table(url, header = T, sep = " ", skip = 1, fill = T)
+
+#Shift data values to the right and add the item number
+c <- 0
+for( i in 1:30){
+  if(i%%3 != 1){
+    sensory[i,] <- lag(sensory[i,])
+    sensory[i,1] <- c
+  }else{
+    c <- c + 1
+  }
+}
+
+#Give each observation its own row
+#Rename columns and remove X's infront of operator numbers
+sensory_tidy <- sensory %>%
+  gather(X1, response, -Item) %>%
+  transmute(Item = Item, Operator = parse_number(X1), Response = response) %>%
+  group_by(Operator)
+
+
+#Final Dataset:
+kable(sensory_tidy)
+
+#Summarize data
+kable(summarise(sensory_tidy, Mean = mean(Response), Std_dev = sd(Response),
+                Min = min(Response), Median = median(Response), 
+                Max = max(Response)))
+
+```
+
+
+### Part b
+```{r jumps}
+#Store URL
+url2 <- "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat"
+
+#Read in data, skip the first row since the labels are messy, fill empty spaces with "NA"
+jumps <- read.table(url2, header = F, sep = " ", skip = 1, fill = T)
+
+#Resize the original matrix to give each observation its own row
+#Convert to tibble to use dplyr functions
+#Remove rows of "NA"
+#Name columns
+#Sort by Year 
+
+jumps_tidy <- jumps %>%
+  resize(nrow = 24, ncol =2, byrow = T) %>%
+  as_tibble(.name_repair = "unique") %>%
+  na.omit() %>%
+  rename(Year = "..1", Long_Jump = "..2") %>%
+  arrange(Year)
+
+#Final Dataset:
+kable(jumps_tidy)
+
+#Summarize data
+kable(summarise(jumps_tidy, Mean = mean(Long_Jump), Std_dev = sd(Long_Jump),
+                Min = min(Long_Jump), Median = median(Long_Jump), 
+                Max = max(Long_Jump)))
+
+```
+
+### Part c
+```{r weight}
+#Store URL
+url3 <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat"
+
+#Read in data, skip the first row since the labels are messy, fill empty spaces with "NA"
+weights <-read.table(url3, header = F, sep = " ", skip = 1, fill = T)
+
+#Resize the original matrix to give each observation its own row
+#Convert to tibble to use dplyr functions
+#Name columns
+weights_tidy <- weights %>%
+  resize(nrow = 63, ncol =2, byrow = T) %>%
+  as_tibble(.name_repair = "unique") %>%
+  rename(Body_Wt = "..1", Brain_Wt = "..2")
+
+#Final Dataset:
+kable(weights_tidy)
+
+#Summarize data
+kable(summary(weights_tidy))
+
+
+```
+
+### Part d
+```{r tomatoes}
+#Store URL
+url4 <-"http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat"
+
+#Read in data, skip first row and use the second row as header, remove the 
+#comment character = "#"
+tomatoes <- read.table(url4, header = T, sep = "", skip = 1, 
+                       comment.char = "")
+
+#Split the data in each of the six cells by ","
+I_X10000 <- do.call("rbind", strsplit(toString(tomatoes[1,1]), ","))
+I_X20000 <- do.call("rbind", strsplit(toString(tomatoes[1,2]), ","))
+I_X30000 <- do.call("rbind", strsplit(toString(tomatoes[1,3]), ","))
+P_X10000 <- do.call("rbind", strsplit(toString(tomatoes[2,1]), ","))
+P_X20000 <- do.call("rbind", strsplit(toString(tomatoes[2,2]), ","))
+P_X30000 <- do.call("rbind", strsplit(toString(tomatoes[2,3]), ","))
+
+#Combine the vectors of split data
+I <- cbind(I_X10000, I_X20000, I_X30000)
+P <- cbind(P_X10000, P_X20000, P_X30000)
+
+tomatoes <- rbind(I,P)
+
+
+#Convert to tibble to use dplyr and tidyr functions
+#Create column with variety names (I = Ife\#1, P = PusaEarlyDwarf)
+#Name columns
+#Give each observation its own row
+#Fix density labels and remove unnecessary column
+#Sort by variety and then density
+#Convert Response type to Numeric
+
+tomatoes_tidy <- tomatoes %>%
+  as_tibble(.name_repair = "unique") %>%
+  mutate("Variety" = c("I", "P")) %>%
+  rename("10000_1" = "..1", "10000_2" = "..2", "10000_3" = "..3",
+         "20000_1" = "..4", "20000_2" = "..5", "20000_3" = "..6", 
+         "30000_1" = "..7", "30000_2" = "..8", "30000_3" = "..9") %>%
+  gather(X1, Response, -Variety) %>%
+  separate(X1, c("Density", "temp")) %>%
+  select(Variety, Density, Response) %>%
+  arrange(Variety, Density) %>%
+  transform(Response = as.numeric(Response))
+
+#Final Dataset:
+kable(tomatoes_tidy)
+
+#Summarize data by variety
+kable(tomatoes_tidy %>%
+  group_by(Variety) %>%
+  summarise(Mean = mean(Response), Std_dev = sd(Response), Min = min(Response), 
+            Median = median(Response), Max = max(Response)))
+
+#Summarize data by density 
+kable(tomatoes_tidy %>%
+  group_by(Density) %>%
+  summarise(Mean = mean(Response), Std_dev = sd(Response), Min = min(Response), 
+            Median = median(Response), Max = max(Response)))
+
+```
