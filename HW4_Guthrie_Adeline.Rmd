@@ -1,0 +1,157 @@
+---
+title: "Homework 4"
+author: "Adeline Guthrie"
+date: "September 24, 2019"
+  - \usepackage{amsmath}
+  - \usepackage[shortlabels]{enumitem}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lintr)
+library(xlsx)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+
+```
+
+## Problem 4
+
+Coding style is a very important feature of ones code because it significantly impacts readability and comprehension of the code.  If you do not follow some sort of standard in your code, it may make it difficult to understand for those reading or using your code.  At the very least, consistency in style is important, but generally following more a universal guide is strongly reccomended.  
+
+One way I plan to improve the style of my code is to be more careful about how I name my variables and functions so it is more clear what each variable or function is/does.  Another way I would like to improve my style is to make my code more concise and efficient.  I want to make better use of piping and commented lines to organize my code. 
+
+
+## Problem 5
+
+```{r lint}
+lint(filename = "C:/Users/Adeline/Documents/STAT_5014/HW3_Guthrie_Adeline.Rmd")
+```
+
+After linting my HW3 assignment, I noticed the most common issues I had were not putting spaces after commas in function calls or indexing matrices.  Also, I had several lines with unnecessary spaces at the end of the line.
+
+
+## Problem 6
+
+```{r observers}
+#Read in data
+dat <- readRDS("/Users/Adeline/Documents/STAT_5014/HW4_data.rds")
+
+#Tidy dataset
+obsTidy <- dat %>%
+  as_tibble() %>%
+  arrange(Observer) %>%
+  gather(dev1, Response, -Observer) %>%
+  transmute(Observer = Observer, Dev = parse_number(dev1), Response = Response)
+
+#Function calculated mean and standard deviation by device
+getStats <- function(dataset, obsNum){
+  stats <- dataset %>%
+    group_by(Dev) %>%
+    summarise(Mean = mean(Response), Stdev = sd(Response)) %>%
+    mutate(Observer = obsNum)
+  
+  return(stats)
+}
+
+#Note:  Ran into some issues with out of date packages and could not read file, ran out of time to complete this part onc I fixed the problem 
+
+#getStats(1)
+
+# ans <- vector()
+# 
+# for (i in 1:13) {
+#   
+#   ans <- bind_rows(ans, bind_cols(c(i,i), getStats(obsTidy, i)))
+# }
+# 
+# vect <- c(1,1)
+# names(vect) <- 
+# 
+# bind_cols(c(1,1), getStats(obsTidy,1))
+
+```
+
+
+## Problem 7
+```{r riemann}
+#Function to be evaluated 
+func1 <- function(x){
+  return(exp(-(x^2) / 2))
+}
+
+#Function uses Riemann sums to approximate the definite integral
+#Note: I know my function does not accurately evaluate the riemann sums, I ran out of time to fix the problem
+riemann <- function(width){
+  points <- vector(length = (1/width))
+  p = 0
+  points[1] <- 0
+  while (p <= 1) {
+    points[p + 1] <- p + width
+    p <- p + width
+  }
+  
+  values <- sapply(points[1:(length(points) - 1)], func1)
+  
+  widths <- rep(width, length(points) - 1)
+  
+  answer <- sum(values * widths)
+  return(answer)
+}
+
+err <- .000001
+count <- 1
+
+#Loop to approximate using different widths
+#Currently runs infinitely as the riemann sums algorithm never approximates the integral within 1e^-6
+while (err >= .000001) {
+  apprx <- riemann(1/count)
+  err <- abs(apprx - 0.855624391892149)
+  count <- count + 1
+  #print(paste('Width = ', ws[count]))
+  #print(paste('Approximation = ', apprx))
+}
+
+print(paste('Width = ', ws[count]))
+print(paste('Approximation = ', apprx))
+```
+
+## Problem 8
+```{r newton}
+#Function for which the roots are to be approximated
+func2 <- function(x) {
+  return(3^x - sin(x) + cos(5 * x))
+}
+
+#Derivative of above function
+derv <- function(x) {
+  return(-5 * sin(5 * x) - cos(x) + log(3) * 3^x)
+}
+
+#Function performing newtown's method to approximate zeroes
+#Input: initial guess for root value, tolerance for error, and max number of iterations
+newtons <- function(init, tol, maxN) {
+  i <- 1
+  while(i <= maxN) {
+    p <- init - (func2(init)/(derv(init)))
+    if( abs(p - init) < tol) {
+      return(p)
+    }
+    points(init, func2(init), col = "red", pch = 19, cex = .75)
+    i <- i + 1
+    init <- p
+  }
+  print ("Method failed after " + maxN + " iterations.")
+  return(NULL)
+}
+
+#Plot function and iterations
+plot.function(func2, from = -10, to = 1, n = 101, ylab = "f(x)")
+abline(0, 0)
+
+approx <- newtons(-4, .000001, 10)
+
+```
