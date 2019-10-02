@@ -1,0 +1,214 @@
+---
+title: "Homework 5"
+author: "Adeline Guthrie"
+date: "October 2, 2019"
+output:
+  html_document:
+    df_print: paged
+subtitle: STAT 5014
+---
+
+```{r lint, include=FALSE}
+#library(lintr)
+#lint(filename = "C:/Users/Adeline/Documents/STAT_5014/HW5_Guthrie_Adeline.Rmd")
+```
+
+
+### Problem 2:  Sums of Squares
+
+```{r Problem 2 setup}
+set.seed(12345)
+y <- seq(from = 1, to = 100, length.out = 1e8) + rnorm(1e8)
+
+Ybar <- mean(y)
+```
+
+
+a. Sums of Squares calculation using a for loop
+
+```{r Problem 2a}
+system.time({
+  SST <- 0
+
+  for (i in 1:1e8) {
+    SST <- SST + ((y[i] - Ybar) ^ 2)
+  }
+
+})
+```
+This is the time breakdown I got from my most recent run:
+
+  user   system  elapsed 
+  12.48    0.07   13.14 
+
+
+b. Sums of Squares calculation using vector operations
+
+```{r Problem 2b}
+system.time({
+  Ybar_vect <- rep(Ybar, 1e8)
+
+  diffs <- y - Ybar_vect
+
+  squares <- diffs * diffs
+
+  SST2 <- sum(squares)
+})
+```
+This is the time breakdown I got from my most recent run:
+
+   user  system  elapsed 
+   1.03    5.34    9.60 
+   
+I did not include the sampling of y in the time calculation as it is the same for both methods and did not need to be included in the comparision.
+
+
+### Problem 3:  Using the dual nature to our advantage
+
+```{r}
+set.seed(1256)
+
+theta <- as.matrix(c(1, 2), nrow = 2)
+X <- cbind(1, rep(1:10, 10))
+h <- X %*% theta + rnorm(100, 0, 0.2)
+
+alpha <- .005
+m <- 100
+tol <- 1e-6
+
+h_0 <- function(theta, x) {
+  return(theta[1] + (theta[2] * x))
+}
+
+# Function to calculate new theta_0
+theta_0 <- function(theta, x) {
+  total <- 0
+
+  for (i in 1:100) {
+    total <- total + (h_0(theta, x[i]) - h[i])
+  }
+  return(theta[1] - (alpha / m) * total)
+}
+
+# Function to calculate new theta_1
+theta_1 <- function(theta, x) {
+  total <- 0
+
+  for (i in 1:100) {
+    total <- total + ((h_0(theta, x[i]) - h[i]) * x[i])
+  }
+  return(theta[2] - (alpha / m) * total)
+}
+
+theta_old <- numeric(2)
+
+while ((abs(theta[1] - theta_old[1]) > tol) && (abs(theta[2] - theta_old[2]) > tol)) {
+  theta_old[1] <- theta[1]
+  theta_old[2] <- theta[2]
+
+  theta[1] <- theta_0(theta, X)
+  theta[2] <- theta_1(theta, X)
+}
+
+line <- function(x) {
+  return(theta[1] + (theta[2] * x))
+}
+
+gradfit <- sapply(X[, 2], line)
+
+lmfit <- lm(h ~ 0 + X)
+
+plot(gradfit, ylim = c(0, 70), ylab = "", col = "Blue")
+par(new=T)
+plot(lmfit$fitted.values,ylim = c(0, 70), ylab = "", col = "Red")
+```
+
+My gradient descent function must be incorrect as the points do not compare well to the lmfit.
+
+Tolerance = 1e-6
+Step size = .005
+
+
+### Problem 4:  Inverting matrices
+
+```{r}
+beta_hat <- function(X, y) {
+  return(solve(t(X) %*% X) %*% t(X) * y)
+}
+```
+
+Since we typically know the result of the matrix $({X}^\prime X)^{-1}$, we could replace it with the already computed matrix.  ie: replace it with 
+
+ \[
+   ({X}^\prime X)^{-1}=
+  \left[ {\begin{array}{cc}
+   \frac{1}{n} + \frac{\bar{X^2}}{S_{xx}} & \frac{-\bar{X}}{S_{xx}} \\
+   \frac{-\bar{X}}{S_{xx}} & \frac{1}{S_{xx}} \\
+  \end{array} } \right]
+\]
+
+to avoid the inverse calculation using solve().
+
+### Problem 5:  Need for speed challenge
+
+```{r Problem 5}
+
+set.seed(123456)
+
+G <- matrix(sample(c(0, 0.5, 1), size = 16000, replace = T), ncol = 10)
+R <- cor(G)  # R: 10 * 10 correlation matrix of G
+C <- kronecker(R, diag(1600))  # C is a 16000 * 16000 block diagonal matrix
+id <- sample(1:16000, size = 932, replace = F)
+q <- sample(c(0, 0.5, 1), size = 15068, replace = T)  # vector of length 15068
+A <- C[id, -id]  # matrix of dimension 932 * 15068
+B <- C[-id, -id]  # matrix of dimesnion 15068 * 15068
+p <- runif(932, 0, 1)
+r <- runif(15068, 0, 1)
+C <- NULL  # save some memory space
+```
+
+a. Matrix A is 112347224 bytes large.  Matrix B is 1816357208 bytes large.
+
+```{r Problem 5a}
+# system.time({
+#   y <- p + ((A %*% solve(B)) %*% (q - r))
+# })
+```
+
+These were the time breakdowns I got from my last two runs:
+
+   user  system elapsed 
+1432.95   28.78 1729.18 
+
+   user  system elapsed 
+1249.68   33.01 1390.75
+
+I had to comment the above section out because my computer could not allocate a vector large enough for it to run when knitting to HTML.
+
+
+b.  Matrix B is just a 16000 x 16000 identity matrix, and the inverse of an identity matrix is just itself, so $B^{-1}$ can be dropped from the calculation.
+
+After removing B, this is the time breakdown I got from my most recent run:
+
+  user  system elapsed 
+  0.03    0.17    0.55 
+
+
+c. 
+```{r Problem 5c}
+system.time({
+  G <- NULL
+  B <- NULL
+  R <- NULL
+  id <- NULL
+  y <- p + (A %*% (q - r))
+})
+```
+
+After clearing the other large matrices that were no longer needed for the calculation, These were the time breakdowns I got from my last two runs:
+
+   user  system elapsed 
+   0.06    0.00    0.06 
+   
+   user  system elapsed 
+   0.05    0.00    0.12 
