@@ -1,0 +1,295 @@
+---
+title: "Homework 7"
+author: "Adeline Guthrie"
+date: "October 23, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantreg)
+library(quantmod)
+library(tidyverse)
+library(knitr)
+library(foreach)
+library(parallel)
+library(doParallel)
+library(snow)
+library(tinytex)
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+# Problem 1
+
+```{r eval=FALSE, include=TRUE}
+#1)fetch data from Yahoo
+#AAPL prices
+apple08 <- getSymbols('AAPL', auto.assign = FALSE, from = '2008-1-1', to = 
+"2008-12-31")[,6]
+#market proxy
+rm08<-getSymbols('^ixic', auto.assign = FALSE, from = '2008-1-1', to = 
+"2008-12-31")[,6]
+
+#log returns of AAPL and market
+logapple08<- na.omit(ROC(apple08)*100)
+logrm08<-na.omit(ROC(rm08)*100)
+
+#OLS for beta estimation
+beta_AAPL_08<-summary(lm(logapple08~logrm08))$coefficients[2,1]
+
+# Original code:
+# #create df from AAPL returns and market returns
+# df08<-cbind(logapple08,logrm08)
+# set.seed(666)
+# Boot_times=1000
+# sd.boot=rep(0,Boot)  #Boot does not exist
+# for(i in 1:Boot){
+# # nonparametric bootstrap
+# bootdata=df08[sample(nrow(df08), size = 251, replace = TRUE),]
+# sd.boot[i]= coef(summary(lm(logapple08~logrm08, data = bootdata)))[2,2]  # wrong col names logapple08~logrm08 
+# }
+
+# Corrected Code:
+#create df from AAPL returns and market returns
+df08<-cbind(logapple08,logrm08)
+set.seed(666)
+Boot=1000
+sd.boot=rep(0,Boot)
+for(i in 1:Boot){
+# nonparametric bootstrap
+bootdata=df08[sample(nrow(df08), size = 251, replace = TRUE),]
+sd.boot[i]= coef(summary(lm(AAPL.Adjusted~IXIC.Adjusted, data = bootdata)))[2,2]
+}
+```
+
+## Part a.
+The first problem with the code is that the desired number of Bootstrapped samples is originally called "Boot_times" however, the code uses "Boot" instead, which does not exist.  Second, in the last line if the for loop, the variables inside the lm function are from the original data rather than from the bootdata, so it is just creating the same exact lm object with the original data each time.
+
+## Part b.
+
+```{r sensory}
+url <- "http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat"
+
+sensory <- read.table(url, header = T, sep = " ", skip = 1, fill = T)
+
+# Tidying data
+c <- 0
+for ( i in 1:30) {
+  if (i %% 3 != 1) {
+    sensory[i, ] <- lag(sensory[i, ])
+    sensory[i, 1] <- c
+  } else {
+    c <- c + 1
+  }
+}
+
+sensory_tidy <- sensory %>%
+  gather(X1, response, -Item) %>%
+  transmute(Item = Item, Operator = parse_number(X1), Response = response) %>%
+  group_by(Operator)
+
+# Fit lm
+lm_full <- lm(Response ~ Operator, data = sensory_tidy)
+coef_full <- lm_full$coefficients
+
+# Bootstrapping
+set.seed(12345)
+time <- system.time({
+n <- nrow(sensory_tidy)
+boot <- 100
+coef_df <- data.frame(B0 = rep(0, boot),
+                      B1 = rep(0, boot))
+for(i in 1:boot) {
+  inds <- c(sample(1:30, size = n/5, replace = TRUE), 
+            sample(31:60, size = n/5, replace = TRUE),
+            sample(61:90, size = n/5, replace = TRUE),
+            sample(91:120, size = n/5, replace = TRUE),
+            sample(121:150, size = n/5, replace = TRUE))
+  sensory_boot <- sensory_tidy[inds, ]
+  lm_boot <- lm(Response ~ Operator, data = sensory_boot)
+  coef_boot <- lm_boot$coefficients
+  coef_df[i, ] <- coef_boot
+}
+})
+```
+
+## Part c.
+
+```{r}
+cl <- makeCluster(8)
+registerDoParallel(cl)
+
+set.seed(12345)
+time2 <- system.time({
+n <- nrow(sensory_tidy)
+boot <- 100
+coef_df2 <- foreach(i = 1:boot, .combine = "rbind") %dopar% {
+  inds <- c(sample(1:30, size = n/5, replace = TRUE), 
+            sample(31:60, size = n/5, replace = TRUE),
+            sample(61:90, size = n/5, replace = TRUE),
+            sample(91:120, size = n/5, replace = TRUE),
+            sample(121:150, size = n/5, replace = TRUE))
+  sensory_boot <- sensory_tidy[inds, ]
+  lm_boot <- lm(Response ~ Operator, data = sensory_boot)
+  coef_boot <- lm_boot$coefficients
+  coef_boot
+}
+})
+
+stopCluster(cl)
+```
+
+The times for the original bootstrap and bootstrapping in parallel are summarized in the following table.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+times <- data.frame(rbind(c(time[1], time[2], time[3]),c(time2[1], time2[2], time2[3])),row.names = c("Normal", "Parallel"))
+kable(times)
+```
+
+It appears that performing the bootstrapping in parallel only resulted in slightly faster performance.  The difference in time would be much greater if we had a bigger data set or if we were performing a more complicated function.
+
+
+# Problem 2
+
+From (-8, 2) the function appears to have seven roots(or eight if there are 2 roots around -5).
+
+```{r plot_fn, echo=F, eval=T, include=T}
+curve(3^x - sin(x) + cos(5*x),from = -8, to=1.4,ylab = "f(x)")
+abline(h = 0)
+```
+
+## Part a.
+
+```{r newton, echo=T, eval=T, include=T}
+  # function will use Newtons method given in class notes
+  # for simplicity, plugging in the derivative directly
+  newton <- function(initGuess){
+    fx <- 3^initGuess - sin(initGuess) + cos(5*initGuess)
+    fxprime <- log(3)*3^(initGuess) - cos(initGuess) - 5*sin(5*initGuess)
+    f <- initGuess - fx/fxprime
+  }
+  roots <- c(-1.5,rep(0,1000))
+  i<-2
+  tolerance <- 0.01
+  move <- 2
+  while(move>tolerance && i < 1002){
+    roots[i] <- newton(roots[i-1])
+    move <- abs(roots[i-1]-roots[i])
+    i <- i+1
+  }
+```
+
+```{r}
+grid <- seq(-8, -2, length.out = 1000)
+time3 <- system.time({
+  sapply(grid, newton)
+})
+```
+
+## Part b.
+
+```{r}
+cl <- makeCluster(8)
+registerDoParallel(cl)
+
+time4 <- system.time({
+  parSapply(cl, grid, newton)
+})
+
+stopCluster(cl)
+```
+
+The times for the original Newton's method and Newton's method in parallel are summarized in the following table.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+times2 <- data.frame(rbind(c(time3[1], time3[2], time3[3]),c(time4[1], time4[2], time4[3])),row.names = c("Normal", "Parallel"))
+kable(times2)
+```
+
+
+Again, it appears that performing Newton's method in parallel only resulted in slightly faster performance.  The difference in time would be much greater if we had a bigger data set or if we were performing a more complicated function.
+
+
+# Problem 4
+
+```{r eval=T, echo=T, include=T}
+    set.seed(1256)
+    theta <- as.matrix(c(1,2),nrow=2)
+    X <- cbind(1,rep(1:10,10))
+    h <- X%*%theta+rnorm(100,0,0.2)
+```
+
+```{r GD, eval=T, echo=T, include=T}
+gd <- function(s1, s2){ 
+  #quick gradient descent
+  #need to make guesses for both Theta0 and Theta1, might as well be close
+  alpha <- 0.0000001 # this is the step size
+  m <- 100 # this is the size of h
+  tolerance <- 0.000000001 # stopping tolerance
+  theta0 <- c(s1,rep(0,999)) # I want to try a guess at 1, setting up container for max 1000 iters
+  theta1 <- c(s2,rep(0,999))
+  i <- 2 #iterator, 1 is my guess (R style indecies)
+  #current theta is last guess
+  current_theta <- as.matrix(c(theta0[i-1],theta1[i-1]),nrow=2)
+  #update guess using gradient
+  theta0[i] <-theta0[i-1] - (alpha/m) * sum(X %*% current_theta - h)
+  theta1[i] <-theta1[i-1] - (alpha/m) * sum((X %*% current_theta - h)*rowSums(X))
+  rs_X <- rowSums(X) # can precalc to save some time
+  z <- 0
+  while(abs(theta0[i]-theta0[i-1])>tolerance && 
+        abs(theta1[i]-theta1[i-1])>tolerance && z<5000000){
+    if(i==1000){
+      theta0[1]=theta0[i]; 
+      theta1[1]=theta1[i]; i=1; 
+    } ##cat("z=",z,"\n",sep="")}
+    z <- z + 1
+    i <- i + 1
+    current_theta <- as.matrix(c(theta0[i-1],theta1[i-1]),nrow=2)
+    theta0[i] <-theta0[i-1] - (alpha/m) * sum(X %*% current_theta - h)
+    theta1[i] <-theta1[i-1] - (alpha/m) * sum((X %*% current_theta - h)*rs_X)
+  }
+  theta0 <- theta0[1:i]
+  theta1 <- theta1[1:i]
+  #
+  return(matrix(c(theta0[i], theta1[i], z), nrow = 1))
+}
+
+lm_fit <- lm(h~0+X)
+
+```
+
+```{r, cache=TRUE}
+cl <- makeCluster(8)
+registerDoParallel(cl)
+
+beta0s <- seq(-.03, 1.97, length.out = 100)
+beta1s <- seq(1, 3, length.out = 100)
+
+grid2 <- expand.grid(beta0 = beta0s, beta1 = beta1s)
+
+time5 <- system.time({
+  ests <- foreach(i = 1:nrow(grid2), .combine = "rbind") %dopar% {
+    gd(grid2[i, 1], grid2[i, 2])
+  }
+})
+
+stopCluster(cl)
+```
+
+## Part a.
+If we changed the stopping rule to include knowledge of the true value, the algorithm may never reach the true value and never terminate.  Even with including a tolerance, it may never get close enough.  Also, in reality we may not know the true value. 
+
+## Part c.
+The summary table of the time it took and the table of starting values and estimates are listed below.  It appears that all 10,000 starting combinations of $\beta_0$ and $\beta_1$ ended prior to $5M$ iterations.  It took close to 5 hours to get all 10,000 esimations.  
+
+```{r}
+times2 <- data.frame(rbind(c(time5[1], time5[2], time5[3])))
+
+kable(times2)
+
+final_table <- cbind(grid2, ests)
+colnames(final_table) <- c("Starting beta0","Starting beta0","Beta0 Estimate","Beta1 Estimate", "# of Iterations")
+
+kable(final_table)
+```
+
