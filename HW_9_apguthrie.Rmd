@@ -1,0 +1,15 @@
+---
+title: "Homework 9"
+author: "Adeline Guthrie"
+date: "11/16/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+devtools::install_github("rstudio/keras")
+
+library(keras)
+install_keras()
+```
+
